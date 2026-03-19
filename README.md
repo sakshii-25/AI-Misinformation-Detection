@@ -1,4 +1,4 @@
-# Debunkr — AI Misinformation Detector 🔍
+# Debunkr - AI Misinformation Detector 🔍
 
 > Evaluating the Usefulness of AI/ML in Misinformation Detection and Mitigation in Social Media
 
@@ -39,9 +39,9 @@ Models were compared using **accuracy, precision, recall, and F1-score**, with b
 ---
 
 ## 🔬 Feature Extraction Pipeline
-1. **TF-IDF** — Term frequency-inverse document frequency vectorisation
-2. **LSA** — Latent Semantic Analysis via Truncated SVD
-3. **Word2Vec** — Word embeddings trained using Gensim
+1. **TF-IDF** - Term frequency-inverse document frequency vectorisation
+2. **LSA** - Latent Semantic Analysis via Truncated SVD
+3. **Word2Vec** - Word embeddings trained using Gensim
 
 ---
 
