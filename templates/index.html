@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Debunkr</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #111111;
+  --surface: #1a1a1a;
+  --panel: #222222;
+  --border: #2e2e2e;
+  --green: #00e676;
+  --green-dim: rgba(0,230,118,0.10);
+  --text: #ffffff;
+  --muted: #888888;
+  --muted2: #444444;
+  --real: #00e676;
+  --fake: #ff4560;
+  --uncertain: #ffc107;
+  --font: 'Inter', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── SIDEBAR ─────────────────────────────────────────────────── */
+.sidebar {
+  background: #0e0e0e;
+  border-right: 1px solid var(--border);
+  padding: 32px 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.logo { padding: 0 24px 28px; border-bottom: 1px solid var(--border); }
+.logo-wordmark { font-size: 1.5rem; font-weight: 900; letter-spacing: -1px; line-height: 1; }
+.logo-wordmark span { color: var(--green); }
+.logo-tag { font-size: 0.58rem; color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: 2px; margin-top: 6px; }
+
+nav { padding: 20px 0; flex: 1; }
+.nav-label { font-size: 0.56rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 3px; font-family: var(--mono); padding: 0 24px; margin-bottom: 6px; }
+
+.nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 24px; font-size: 0.85rem; font-weight: 500;
+  color: var(--muted); cursor: pointer; transition: all 0.15s;
+  border: none; background: none; text-align: left; width: 100%; position: relative;
+}
+.nav-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--green); opacity: 0; transition: opacity 0.15s; }
+.nav-item:hover { color: var(--text); background: rgba(255,255,255,0.02); }
+.nav-item.active { color: var(--text); background: rgba(0,230,118,0.05); }
+.nav-item.active::before { opacity: 1; }
+.nav-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted2); flex-shrink: 0; transition: all 0.15s; }
+.nav-item.active .nav-dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+
+.sidebar-stats { padding: 20px 24px; border-top: 1px solid var(--border); margin-top: auto; }
+.stats-label { font-size: 0.56rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 3px; font-family: var(--mono); margin-bottom: 14px; }
+.stat-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; font-size: 0.8rem; }
+.stat-name { color: var(--muted); }
+.stat-num { font-family: var(--mono); font-size: 0.85rem; }
+.stat-num.g { color: var(--real); }
+.stat-num.r { color: var(--fake); }
+
+/* ── MAIN ────────────────────────────────────────────────────── */
+main { overflow-y: auto; position: relative; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── CHECKER PAGE ────────────────────────────────────────────── */
+#page-checker { min-height: 100%; position: relative; }
+
+#page-checker::before {
+  content: '';
+  position: fixed; inset: 0; left: 220px;
+  background-image:
+    linear-gradient(rgba(0,230,118,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,230,118,0.035) 1px, transparent 1px);
+  background-size: 44px 44px;
+  pointer-events: none; z-index: 0;
+}
+
+.checker-inner {
+  position: relative; z-index: 1;
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 56px 40px 80px;
+}
+
+.checker-heading { margin-bottom: 44px; animation: fadeUp 0.4s ease both; }
+.checker-heading h1 { font-size: clamp(2.4rem, 4.5vw, 3.6rem); font-weight: 900; letter-spacing: -2px; line-height: 1; margin-bottom: 10px; }
+.checker-heading h1 .dot { color: var(--green); }
+.checker-heading p { font-size: 0.88rem; color: var(--muted); line-height: 1.6; max-width: 520px; }
+
+/* ── VERIFY BOX ──────────────────────────────────────────────── */
+.verify-box { position: relative; animation: fadeUp 0.4s ease 0.08s both; }
+.verify-box::before, .verify-box::after {
+  content: ''; position: absolute;
+  width: 28px; height: 28px;
+  border-color: var(--green); border-style: solid;
+  z-index: 2; pointer-events: none;
+}
+.verify-box::before { top: -9px; left: -9px; border-width: 2px 0 0 2px; }
+.verify-box::after  { bottom: -9px; right: -9px; border-width: 0 2px 2px 0; }
+.verify-box-inner { position: relative; }
+.verify-box-inner::before, .verify-box-inner::after {
+  content: ''; position: absolute;
+  width: 28px; height: 28px;
+  border-color: var(--green); border-style: solid;
+  z-index: 2; pointer-events: none;
+}
+.verify-box-inner::before { top: -9px; right: -9px; border-width: 2px 2px 0 0; }
+.verify-box-inner::after  { bottom: -9px; left: -9px; border-width: 0 0 2px 2px; }
+
+.form-card { background: var(--surface); border: 1px solid var(--border); padding: 32px 36px 36px; }
+.form-title { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 4px; color: var(--muted); font-family: var(--mono); margin-bottom: 24px; text-align: center; }
+
+.input-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 28px; }
+.tab { flex: 1; padding: 10px 12px; font-size: 0.72rem; font-weight: 700; color: var(--muted); cursor: pointer; border: none; background: none; font-family: var(--font); letter-spacing: 0.5px; transition: color 0.15s; border-bottom: 2px solid transparent; margin-bottom: -1px; text-transform: uppercase; }
+.tab.active { color: var(--green); border-bottom-color: var(--green); }
+.tab:hover:not(.active) { color: var(--text); }
+
+.field-label { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; font-family: var(--mono); margin-bottom: 10px; }
+
+textarea, .url-input {
+  width: 100%; background: var(--panel); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--text); font-family: var(--font);
+  font-size: 0.95rem; padding: 16px 18px; outline: none;
+  transition: border-color 0.2s; line-height: 1.6;
+}
+textarea { min-height: 150px; resize: vertical; }
+textarea:focus, .url-input:focus { border-color: var(--green); }
+textarea::placeholder, .url-input::placeholder { color: var(--muted2); }
+
+.file-drop { border: 2px dashed var(--border); border-radius: 4px; padding: 48px 32px; text-align: center; cursor: pointer; transition: border-color 0.2s; }
+.file-drop:hover { border-color: var(--green); }
+.drop-icon { font-size: 2rem; margin-bottom: 10px; }
+.file-drop p { color: var(--muted); font-size: 0.85rem; }
+.file-drop strong { color: var(--green); }
+#file-input { display: none; }
+#file-preview { margin-top: 12px; font-family: var(--mono); font-size: 0.72rem; color: var(--green); }
+
+.form-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; }
+.char-count { font-family: var(--mono); font-size: 0.65rem; color: var(--muted2); }
+
+.btn-analyse {
+  background: var(--green); color: #000; border: none;
+  padding: 14px 44px; font-family: var(--font);
+  font-size: 0.78rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 3px;
+  cursor: pointer; transition: opacity 0.2s, transform 0.1s;
+}
+.btn-analyse:hover { opacity: 0.88; }
+.btn-analyse:active { transform: scale(0.98); }
+.btn-analyse:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.info-strip { display: flex; gap: 1px; margin-top: 20px; background: var(--border); animation: fadeUp 0.4s ease 0.15s both; }
+.info-cell { flex: 1; background: var(--surface); padding: 14px 18px; }
+.info-cell-label { font-size: 0.55rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 2px; font-family: var(--mono); margin-bottom: 6px; }
+.info-cell-val { font-size: 0.78rem; color: var(--text); font-weight: 500; }
+.tag { display: inline-block; background: var(--green-dim); color: var(--green); font-family: var(--mono); font-size: 0.62rem; padding: 1px 7px; border-radius: 2px; margin: 2px 3px 2px 0; }
+
+/* ── SPINNER ─────────────────────────────────────────────────── */
+.spinner-wrap { display: none; align-items: center; gap: 14px; margin-top: 28px; padding: 20px 28px; border: 1px solid var(--border); background: var(--surface); }
+.spinner-wrap.visible { display: flex; }
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.15;} }
+.spinner-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: blink 1s ease-in-out infinite; box-shadow: 0 0 10px var(--green); flex-shrink: 0; }
+.spinner-text { font-family: var(--mono); font-size: 0.75rem; color: var(--green); }
+.spinner-steps { display: flex; gap: 5px; margin-left: auto; }
+.spinner-step { width: 22px; height: 3px; background: var(--border); border-radius: 2px; transition: background 0.3s; }
+.spinner-step.done { background: var(--green); }
+
+/* ── RESULTS ─────────────────────────────────────────────────── */
+#result-section { display: none; margin-top: 28px; }
+#result-section.visible { display: block; animation: fadeUp 0.4s ease both; }
+
+.verdict-banner {
+  padding: 32px 36px; display: flex; align-items: center; gap: 24px;
+  position: relative; overflow: hidden; margin-bottom: 1px;
+}
+.verdict-banner::before { content: ''; position: absolute; inset: 0; opacity: 0.07; }
+.verdict-banner.REAL      { border-left: 4px solid var(--real);      background: var(--surface); }
+.verdict-banner.FAKE      { border-left: 4px solid var(--fake);      background: var(--surface); }
+.verdict-banner.UNCERTAIN { border-left: 4px solid var(--uncertain); background: var(--surface); }
+.verdict-banner.REAL::before      { background: var(--real); }
+.verdict-banner.FAKE::before      { background: var(--fake); }
+.verdict-banner.UNCERTAIN::before { background: var(--uncertain); }
+
+.verdict-big { font-size: 3.2rem; font-weight: 900; letter-spacing: -2px; line-height: 1; }
+.verdict-big.REAL      { color: var(--real); }
+.verdict-big.FAKE      { color: var(--fake); }
+.verdict-big.UNCERTAIN { color: var(--uncertain); }
+.verdict-sub-text { font-size: 0.82rem; color: var(--muted); margin-top: 6px; }
+
+.verdict-right { margin-left: auto; text-align: right; flex-shrink: 0; }
+.conf-number { font-family: var(--mono); font-size: 2rem; font-weight: 700; }
+.conf-number.REAL      { color: var(--real); }
+.conf-number.FAKE      { color: var(--fake); }
+.conf-number.UNCERTAIN { color: var(--uncertain); }
+.conf-label { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; font-family: var(--mono); }
+
+.sources-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); }
+.source-cell { background: var(--surface); padding: 18px 20px; transition: background 0.15s; }
+.source-cell:hover { background: var(--panel); }
+.src-name { font-size: 0.58rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 1.5px; font-family: var(--mono); margin-bottom: 8px; }
+.src-verdict { font-size: 0.88rem; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+.src-verdict.REAL      { color: var(--real); }
+.src-verdict.FAKE      { color: var(--fake); }
+.src-verdict.UNCERTAIN { color: var(--uncertain); }
+.src-verdict.NO_DATA   { color: var(--muted2); font-weight: 400; }
+.src-detail { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); margin-top: 5px; }
+.src-link { display: inline-block; margin-top: 7px; font-size: 0.65rem; color: var(--green); font-family: var(--mono); text-decoration: none; border: 1px solid var(--border); padding: 2px 7px; }
+.src-link:hover { border-color: var(--green); }
+
+/* ── HISTORY ─────────────────────────────────────────────────── */
+#page-history { min-height: 100%; }
+.page-wrap { padding: 48px; }
+.page-head { margin-bottom: 32px; }
+.page-head h1 { font-size: 2.8rem; font-weight: 900; letter-spacing: -2px; line-height: 1; }
+.page-head h1 span { color: var(--green); }
+.page-head p { color: var(--muted); font-size: 0.85rem; margin-top: 8px; }
+
+.filters { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+.filter-btn { padding: 6px 18px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border: 1px solid var(--border); background: none; color: var(--muted); cursor: pointer; font-family: var(--font); transition: all 0.15s; }
+.filter-btn:hover { border-color: var(--green); color: var(--text); }
+.filter-btn.active { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+.btn-clear-all { padding: 6px 18px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border: 1px solid var(--fake); background: none; color: var(--fake); cursor: pointer; font-family: var(--font); transition: all 0.15s; margin-left: auto; }
+.btn-clear-all:hover { background: rgba(255,69,96,0.1); }
+
+.history-table { border: 1px solid var(--border); }
+.history-header { display: grid; grid-template-columns: 1fr 80px 100px 140px 30px; padding: 10px 20px; border-bottom: 1px solid var(--border); font-size: 0.58rem; text-transform: uppercase; letter-spacing: 2px; color: var(--muted2); font-family: var(--mono); background: var(--surface); }
+.history-row { display: grid; grid-template-columns: 1fr 80px 100px 140px 30px; padding: 14px 20px; border-bottom: 1px solid var(--border); align-items: center; font-size: 0.83rem; cursor: pointer; transition: background 0.12s; }
+.history-row:last-child { border-bottom: none; }
+.history-row:hover { background: rgba(255,255,255,0.02); }
+.h-content { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 16px; }
+.h-type { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); }
+.badge { display: inline-block; padding: 2px 9px; font-size: 0.65rem; font-family: var(--mono); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+.badge.REAL      { color: var(--real);      border: 1px solid var(--real);      background: rgba(0,230,118,0.07); }
+.badge.FAKE      { color: var(--fake);      border: 1px solid var(--fake);      background: rgba(255,69,96,0.08); }
+.badge.UNCERTAIN { color: var(--uncertain); border: 1px solid var(--uncertain); background: rgba(255,193,7,0.08); }
+.h-ts { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); }
+.h-arr { color: var(--muted2); }
+.history-row:hover .h-arr { color: var(--green); }
+.empty-state { padding: 64px 40px; text-align: center; color: var(--muted); }
+.empty-icon { font-size: 2.5rem; margin-bottom: 12px; }
+
+/* ── ABOUT ───────────────────────────────────────────────────── */
+#page-about { min-height: 100%; }
+.steps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); margin-top: 28px; }
+.step-cell { background: var(--bg); padding: 22px; transition: background 0.15s; }
+.step-cell:hover { background: var(--surface); }
+.step-num { font-family: var(--mono); font-size: 0.62rem; color: var(--green); margin-bottom: 8px; letter-spacing: 2px; }
+.step-cell h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 5px; }
+.step-cell p { font-size: 0.78rem; color: var(--muted); line-height: 1.6; }
+.about-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin-top: 1px; background: var(--border); }
+.about-card { background: var(--surface); padding: 22px; }
+.about-card h3 { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--green); margin-bottom: 9px; font-family: var(--mono); }
+.about-card p { font-size: 0.82rem; color: var(--muted); line-height: 1.6; }
+.about-card strong { color: var(--text); }
+
+@keyframes fadeUp { from{opacity:0;transform:translateY(14px);} to{opacity:1;transform:translateY(0);} }
+body::after { content:''; position:fixed; inset:0; z-index:9999; pointer-events:none; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.02) 2px,rgba(0,0,0,0.02) 4px); }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-wordmark">De<span>bunkr.</span></div>
+    <div class="logo-tag">AI Fact Checker</div>
+  </div>
+  <nav>
+    <div class="nav-label" style="margin-top:4px">Navigation</div>
+    <button class="nav-item active" data-page="checker" onclick="navigate(this)"><span class="nav-dot"></span> Check Content</button>
+    <button class="nav-item" data-page="history" onclick="navigate(this)"><span class="nav-dot"></span> History</button>
+    <button class="nav-item" data-page="about"   onclick="navigate(this)"><span class="nav-dot"></span> How It Works</button>
+  </nav>
+  <div class="sidebar-stats">
+    <div class="stats-label">Session</div>
+    <div class="stat-item"><span class="stat-name">Total Checks</span><span class="stat-num" id="stat-total">—</span></div>
+    <div class="stat-item"><span class="stat-name">Real</span><span class="stat-num g" id="stat-real">—</span></div>
+    <div class="stat-item"><span class="stat-name">Fake</span><span class="stat-num r" id="stat-fake">—</span></div>
+    <div class="stat-item"><span class="stat-name">Uncertain</span><span class="stat-num" id="stat-uncertain">—</span></div>
+  </div>
+</aside>
+
+<main>
+
+  <!-- CHECK PAGE -->
+  <section class="page active" id="page-checker">
+    <div class="checker-inner">
+      <div class="checker-heading">
+        <h1>Detect Misinformation<span class="dot">.</span></h1>
+        <p>Paste any text, tweet, or URL- cross-verified by your AI model and 3 live fact-check sources in seconds.</p>
+      </div>
+
+      <div class="verify-box">
+        <div class="verify-box-inner">
+          <div class="form-card">
+            <div class="form-title">Verify Content</div>
+            <div class="input-tabs">
+              <button class="tab active" data-tab="text" onclick="switchTab(this)">📝 Text / Tweet</button>
+              <button class="tab" data-tab="url"  onclick="switchTab(this)">🔗 Article URL</button>
+              <button class="tab" data-tab="file" onclick="switchTab(this)">📄 Upload File</button>
+            </div>
+            <div id="tab-text">
+              <div class="field-label">Content to verify</div>
+              <textarea id="text-input" placeholder="Paste a tweet, headline, claim, or any text you want to fact-check…" oninput="updateCount()"></textarea>
+            </div>
+            <div id="tab-url" style="display:none">
+              <div class="field-label">Article URL</div>
+              <input class="url-input" type="url" id="url-input" placeholder="https://example.com/news-article-to-check">
+            </div>
+            <div id="tab-file" style="display:none">
+              <div class="field-label">Upload file</div>
+              <div class="file-drop" id="file-drop"
+                   onclick="document.getElementById('file-input').click()"
+                   ondragover="event.preventDefault();this.style.borderColor='var(--green)'"
+                   ondragleave="this.style.borderColor=''"
+                   ondrop="handleDrop(event)">
+                <div class="drop-icon">📂</div>
+                <p>Drop a <strong>.txt</strong> or <strong>.csv</strong> file here, or <strong>click to browse</strong></p>
+              </div>
+              <input type="file" id="file-input" accept=".txt,.csv" onchange="handleFile(this)">
+              <div id="file-preview"></div>
+            </div>
+            <div class="form-footer">
+              <span class="char-count" id="char-count">0 characters</span>
+              <button class="btn-analyse" id="analyse-btn" onclick="runCheck()">→ Analyse Now</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-strip">
+        <div class="info-cell">
+          <div class="info-cell-label">Sources</div>
+          <div class="info-cell-val"><span class="tag">XGBoost ML</span><span class="tag">Google</span><span class="tag">Snopes</span><span class="tag">FactCheck.org</span></div>
+        </div>
+        <div class="info-cell">
+          <div class="info-cell-label">Model Accuracy</div>
+          <div class="info-cell-val">95% Test Accuracy · F1 Score 0.95</div>
+        </div>
+        <div class="info-cell">
+          <div class="info-cell-label">Verdict Logic</div>
+          <div class="info-cell-val">Weighted majority vote · 4 sources</div>
+        </div>
+      </div>
+
+      <div class="spinner-wrap" id="spinner">
+        <div class="spinner-dot"></div>
+        <span class="spinner-text" id="spinner-text">Running ML model…</span>
+        <div class="spinner-steps">
+          <div class="spinner-step" id="sp1"></div>
+          <div class="spinner-step" id="sp2"></div>
+          <div class="spinner-step" id="sp3"></div>
+          <div class="spinner-step" id="sp4"></div>
+          <div class="spinner-step" id="sp5"></div>
+        </div>
+      </div>
+
+      <div id="result-section">
+        <div class="verdict-banner" id="verdict-banner">
+          <div>
+            <div class="verdict-big" id="verdict-big"></div>
+            <div class="verdict-sub-text" id="verdict-sub"></div>
+          </div>
+          <div class="verdict-right">
+            <div class="conf-number" id="conf-number"></div>
+            <div class="conf-label">Confidence</div>
+          </div>
+        </div>
+        <div class="sources-grid" id="sources-grid"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HISTORY PAGE -->
+  <section class="page" id="page-history">
+    <div class="page-wrap">
+      <div class="page-head">
+        <h1>Check History<span>.</span></h1>
+        <p>All previous analyses stored and searchable.</p>
+      </div>
+      <div class="filters">
+        <button class="filter-btn active" onclick="filterH(this,'all')">All</button>
+        <button class="filter-btn" onclick="filterH(this,'REAL')">✅ Real</button>
+        <button class="filter-btn" onclick="filterH(this,'FAKE')">❌ Fake</button>
+        <button class="filter-btn" onclick="filterH(this,'UNCERTAIN')">❓ Uncertain</button>
+        <button class="btn-clear-all" onclick="confirmClear()">🗑 Clear All</button>
+      </div>
+      <div class="history-table">
+        <div class="history-header">
+          <span>Content</span><span>Type</span><span>Verdict</span><span>Date</span><span></span>
+        </div>
+        <div id="history-body"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABOUT PAGE -->
+  <section class="page" id="page-about">
+    <div class="page-wrap">
+      <div class="page-head">
+        <h1>How It Works<span>.</span></h1>
+        <p>Multi-layer AI verification pipeline from raw text to verdict.</p>
+      </div>
+      <div class="steps-grid">
+        <div class="step-cell"><div class="step-num">01 —</div><h4>Text Preprocessing</h4><p>URLs removed, lowercased, lemmatised, stopwords stripped — identical pipeline to model training.</p></div>
+        <div class="step-cell"><div class="step-num">02 —</div><h4>TF-IDF + LSA</h4><p>10,000 TF-IDF features reduced to 300 dimensions via Latent Semantic Analysis (TruncatedSVD).</p></div>
+        <div class="step-cell"><div class="step-num">03 —</div><h4>Word2Vec Embeddings</h4><p>100-dimensional semantic embeddings combined with LSA into a 400-dim feature vector.</p></div>
+        <div class="step-cell"><div class="step-num">04 —</div><h4>XGBoost Classification</h4><p>95% test accuracy. Confidence extracted from class probability distribution.</p></div>
+        <div class="step-cell"><div class="step-num">05 —</div><h4>Google Fact Check API</h4><p>Cross-referenced against millions of reviewed claims from professional fact-checkers worldwide.</p></div>
+        <div class="step-cell"><div class="step-num">06 —</div><h4>Snopes + FactCheck.org</h4><p>Live search and rating extraction from two of the world's most trusted fact-checking organisations.</p></div>
+      </div>
+      <div class="about-cards">
+        <div class="about-card"><h3>Verdict Logic</h3><p>The ML model carries <strong>2× weight</strong>. Each external source gets 1 vote. The majority wins — returning <strong>REAL</strong>, <strong>FAKE</strong>, or <strong>UNCERTAIN</strong> with a confidence percentage.</p></div>
+        <div class="about-card"><h3>Input Formats</h3><p>Raw <strong>text or tweets</strong>, <strong>article URLs</strong> (auto-fetched), and <strong>file uploads</strong> (.txt, .csv). All run through the exact same pipeline.</p></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+function navigate(btn) {
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('page-'+btn.dataset.page).classList.add('active');
+  if(btn.dataset.page==='history') loadHistory();
+}
+
+let activeTab = 'text';
+function switchTab(el) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  activeTab = el.dataset.tab;
+  ['text','url','file'].forEach(id=>document.getElementById('tab-'+id).style.display='none');
+  document.getElementById('tab-'+activeTab).style.display='block';
+  updateCount();
+}
+
+function updateCount() {
+  const v = document.getElementById('text-input').value;
+  document.getElementById('char-count').textContent = v.length + ' characters';
+}
+
+let fileContent = '';
+function handleFile(input) {
+  const f = input.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = e => { fileContent = e.target.result; document.getElementById('file-preview').textContent = '✓ '+f.name+' ('+fileContent.length+' chars)'; };
+  r.readAsText(f);
+}
+function handleDrop(e) {
+  e.preventDefault(); document.getElementById('file-drop').style.borderColor='';
+  const f = e.dataTransfer.files[0];
+  if(f) { document.getElementById('file-input').files=e.dataTransfer.files; handleFile(document.getElementById('file-input')); }
+}
+
+const spinMsgs=['Running ML model…','Querying Google Fact Check API…','Searching Snopes…','Checking FactCheck.org…','Computing final verdict…'];
+
+async function runCheck() {
+  let content='', type='text';
+  if(activeTab==='text') { content=document.getElementById('text-input').value.trim(); if(!content){alert('Please enter some text.');return;} }
+  else if(activeTab==='url') { content=document.getElementById('url-input').value.trim(); if(!content){alert('Please enter a URL.');return;} type='url'; }
+  else { if(!fileContent){alert('Please select a file.');return;} content=fileContent; }
+
+  document.getElementById('result-section').classList.remove('visible');
+  document.getElementById('spinner').classList.add('visible');
+  document.getElementById('analyse-btn').disabled=true;
+
+  let idx=0;
+  const steps=[1,2,3,4,5].map(n=>document.getElementById('sp'+n));
+  const iv=setInterval(()=>{
+    document.getElementById('spinner-text').textContent=spinMsgs[idx%spinMsgs.length];
+    if(steps[idx]) steps[idx].classList.add('done');
+    idx++;
+  },900);
+
+  try {
+    const resp=await fetch('/api/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,content})});
+    const data=await resp.json();
+    if(data.error){alert('Error: '+data.error);return;}
+    renderResult(data);
+    loadSidebarStats();
+  } catch(err) {
+    alert('Cannot connect to server. Make sure Flask is running.');
+  } finally {
+    clearInterval(iv);
+    steps.forEach(s=>s.classList.remove('done'));
+    document.getElementById('spinner').classList.remove('visible');
+    document.getElementById('analyse-btn').disabled=false;
+  }
+}
+
+function renderResult(data) {
+  const v=data.verdict;
+  const subs={REAL:'Our analysis suggests this content is likely accurate.',FAKE:'Our analysis suggests this content contains misinformation.',UNCERTAIN:'Insufficient evidence for a definitive verdict — verify manually.'};
+  const banner=document.getElementById('verdict-banner');
+  banner.className='verdict-banner '+v;
+  const vb=document.getElementById('verdict-big'); vb.textContent=v+'.'; vb.className='verdict-big '+v;
+  document.getElementById('verdict-sub').textContent=subs[v]||'';
+  const cn=document.getElementById('conf-number'); cn.textContent=data.confidence+'%'; cn.className='conf-number '+v;
+
+  const grid=document.getElementById('sources-grid'); grid.innerHTML='';
+  const srcList=[
+    {key:'ml_model',label:'AI Model',icon:'🤖'},
+    {key:'google',label:'Google FC',icon:'🔍'},
+    {key:'snopes',label:'Snopes',icon:'🕵️'},
+    {key:'factcheck_org',label:'FactCheck.org',icon:'📰'},
+  ];
+  const sources=data.sources||{};
+  for(const s of srcList){
+    const src=sources[s.key];
+    const el=document.createElement('div'); el.className='source-cell';
+    if(!src){
+      el.innerHTML=`<div class="src-name">${s.icon} ${s.label}</div><div class="src-verdict NO_DATA">— No data</div>`;
+    } else {
+      const sv=src.verdict||'UNCERTAIN';
+      const icon=sv==='REAL'?'✅':sv==='FAKE'?'❌':'❓';
+      const detail=src.confidence?src.confidence+'% conf':(src.detail||'');
+      const claims=(src.claims||src.results||[]);
+      const link=claims.find(c=>c.url)?`<a class="src-link" href="${claims.find(c=>c.url).url}" target="_blank">↗ View</a>`:'';
+      el.innerHTML=`<div class="src-name">${s.icon} ${s.label}</div><div class="src-verdict ${sv}">${icon} ${sv}</div>${detail?`<div class="src-detail">${detail}</div>`:''}${link}`;
+    }
+    grid.appendChild(el);
+  }
+
+  const rs=document.getElementById('result-section');
+  rs.classList.add('visible');
+  setTimeout(()=>rs.scrollIntoView({behavior:'smooth',block:'start'}),50);
+}
+
+let currentFilter='all';
+async function loadHistory() {
+  try {
+    const resp=await fetch('/api/history');
+    const data=await resp.json();
+    renderHistory(data.checks||[], currentFilter);
+  } catch{}
+}
+
+function filterH(btn,filter) {
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFilter=filter;
+  loadHistory();
+}
+
+function confirmClear() {
+  if(!confirm('Clear all history? This cannot be undone.')) return;
+  fetch('/api/history/clear', {method:'DELETE'})
+    .then(r=>r.json())
+    .then(data=>{
+      if(data.success){ loadHistory(); loadSidebarStats(); }
+      else alert('Failed: '+(data.error||'unknown error'));
+    })
+    .catch(()=>alert('Could not connect to server.'));
+}
+
+function renderHistory(checks,filter) {
+  const items=filter==='all'?checks:checks.filter(c=>c.verdict===filter);
+  const body=document.getElementById('history-body');
+  if(!items.length){body.innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><p>No checks found.</p></div>`;return;}
+  body.innerHTML=items.map(c=>`
+    <div class="history-row">
+      <span class="h-content">${escHtml(c.content)}</span>
+      <span class="h-type">${c.input_type}</span>
+      <span><span class="badge ${c.verdict}">${c.verdict}</span></span>
+      <span class="h-ts">${formatDate(c.timestamp)}</span>
+      <span class="h-arr">→</span>
+    </div>`).join('');
+}
+
+async function loadSidebarStats() {
+  try {
+    const resp=await fetch('/api/history');
+    const data=await resp.json();
+    const checks=data.checks||[];
+    document.getElementById('stat-total').textContent=data.total||0;
+    document.getElementById('stat-real').textContent=checks.filter(c=>c.verdict==='REAL').length;
+    document.getElementById('stat-fake').textContent=checks.filter(c=>c.verdict==='FAKE').length;
+    document.getElementById('stat-uncertain').textContent=checks.filter(c=>c.verdict==='UNCERTAIN').length;
+  } catch{}
+}
+
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function formatDate(iso){try{const d=new Date(iso);return d.toLocaleDateString()+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}catch{return iso||'';}}
+
+loadSidebarStats();
+</script>
+</body>
+</html>
